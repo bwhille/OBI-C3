@@ -5,3 +5,5 @@
 *.elf
 *.map
 *.pre-obi-web
+__pycache__/
+*.py[cod]
