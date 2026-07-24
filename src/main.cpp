@@ -331,6 +331,10 @@ struct BatteryData {
 BatteryData battery;
 bool access_point_mode = false;
 String access_point_name;
+#ifdef OBI_MOCK_BATTERY
+bool mock_battery_locked = true;
+uint32_t mock_refresh_count = 0;
+#endif
 
 uint8_t nibble_swap(uint8_t value) {
     return ((value & 0xF0) >> 4) | ((value & 0x0F) << 4);
@@ -373,6 +377,27 @@ bool is_printable_model(const byte *response) {
 }
 
 bool read_static_data(String &error) {
+#ifdef OBI_MOCK_BATTERY
+    battery.valid = true;
+    battery.diagnostics_only = false;
+    battery.model = "BL1850B-SIM";
+    battery.state = mock_battery_locked ? "LOCKED" : "UNLOCKED";
+    battery.status_code = mock_battery_locked ? "04" : "00";
+    battery.rom_id = "26 07 24 C3 00 00 00 01";
+    battery.manufacturing_date = "24.07.2026";
+    battery.battery_message =
+        mock_battery_locked
+            ? "33 0F 00 F1 26 BD 13 14 58 00 00 94 94 40 21 D0 "
+              "80 02 4E 23 D0 8E 45 60 1A 04 03 12 02 0E 20 00"
+            : "33 0F 00 F1 26 BD 13 14 58 00 00 94 94 40 21 D0 "
+              "80 02 4E 23 D0 8E 45 60 1A 00 03 02 02 0E 20 00";
+    battery.charge_count = 127;
+    battery.battery_type = 18;
+    battery.capacity_ah = 5.0f;
+    battery.read_at_ms = millis();
+    error = "";
+    return true;
+#else
     byte response[64] = {0};
     if (!request_obi(
             READ_MSG_CMD,
@@ -459,9 +484,36 @@ bool read_static_data(String &error) {
     battery.valid = true;
     battery.read_at_ms = millis();
     return true;
+#endif
 }
 
 bool read_live_data(String &error) {
+#ifdef OBI_MOCK_BATTERY
+    if (!battery.valid && !read_static_data(error)) {
+        return false;
+    }
+
+    mock_refresh_count++;
+    const float drift =
+        static_cast<int32_t>(mock_refresh_count % 5) * 0.001f;
+    battery.cell_voltages[0] = 3.942f + drift;
+    battery.cell_voltages[1] = 3.936f + drift;
+    battery.cell_voltages[2] = 3.948f + drift;
+    battery.cell_voltages[3] = 3.931f + drift;
+    battery.cell_voltages[4] = 3.940f + drift;
+    battery.pack_voltage = 0;
+    for (float voltage : battery.cell_voltages) {
+        battery.pack_voltage += voltage;
+    }
+    battery.cell_voltage_difference =
+        battery.cell_voltages[2] - battery.cell_voltages[3];
+    battery.temperature_cell = 24.6f + drift * 10;
+    battery.temperature_mosfet = 26.2f + drift * 10;
+    battery.has_mosfet_temperature = true;
+    battery.read_at_ms = millis();
+    error = "";
+    return true;
+#else
     if (!battery.valid && !read_static_data(error)) {
         return false;
     }
@@ -547,6 +599,7 @@ bool read_live_data(String &error) {
     battery.cell_voltage_difference = maximum - minimum;
     battery.read_at_ms = millis();
     return true;
+#endif
 }
 
 void add_battery_json(JsonObject target) {
@@ -671,6 +724,14 @@ void handle_reset_errors() {
 
     const String before_state = battery.state;
     const String before_code = battery.status_code;
+#ifdef OBI_MOCK_BATTERY
+    mock_battery_locked = false;
+    battery.valid = false;
+    if (!read_static_data(error) || !read_live_data(error)) {
+        send_error("Simulierter Reset konnte nicht ausgewertet werden.", 500);
+        return;
+    }
+#else
     byte response[16] = {0};
 
     if (!request_obi(
@@ -700,9 +761,15 @@ void handle_reset_errors() {
         );
         return;
     }
+#endif
 
     JsonDocument document;
-    document["message"] = "Fehler-Reset wurde gesendet und kontrolliert.";
+    document["message"] =
+#ifdef OBI_MOCK_BATTERY
+        "Simulierter Fehler-Reset wurde ausgefuehrt.";
+#else
+        "Fehler-Reset wurde gesendet und kontrolliert.";
+#endif
     document["before"]["state"] = before_state;
     document["before"]["status_code"] = before_code;
     document["after"]["state"] = battery.state;
@@ -759,6 +826,31 @@ void start_access_point() {
 }
 
 void setup_wifi() {
+#ifdef OBI_WOKWI_WIFI
+    WiFi.mode(WIFI_STA);
+    WiFi.setHostname("obi");
+    WiFi.begin("Wokwi-GUEST", "", 6);
+
+    Serial.print("Verbinde mit Wokwi-GUEST");
+    for (uint8_t attempt = 0;
+         attempt < 30 && WiFi.status() != WL_CONNECTED;
+         attempt++) {
+        delay(500);
+        Serial.print('.');
+    }
+    Serial.println();
+
+    if (WiFi.status() == WL_CONNECTED) {
+        access_point_mode = false;
+        Serial.println("Wokwi-WLAN verbunden.");
+        Serial.println("Adresse: http://" + WiFi.localIP().toString());
+        return;
+    }
+
+    Serial.println("Wokwi-WLAN konnte nicht verbunden werden.");
+    start_access_point();
+    return;
+#else
     preferences.begin("obi-wifi", true);
     const String ssid = preferences.getString("ssid", "");
     const String password = preferences.getString("password", "");
@@ -797,6 +889,7 @@ void setup_wifi() {
     Serial.println("WLAN verbunden.");
     Serial.println("Adresse: http://" + WiFi.localIP().toString());
     Serial.println("mDNS: http://obi.local");
+#endif
 }
 
 void setup_web_server() {
