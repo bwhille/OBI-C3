@@ -101,6 +101,61 @@ http://obi.local
 Wenn mDNS im Netzwerk nicht funktioniert, zeigt der serielle Monitor die
 vergebene IP-Adresse an.
 
+## Virtuell testen
+
+### Kostenloser Browser-Test
+
+Der lokale Mock-Server verwendet exakt die in der Firmware eingebettete
+Weboberfläche und simuliert einen BL1850B-Akku. Dafür ist nur Python 3 nötig:
+
+```bash
+python3 tools/mock_server.py
+```
+
+Danach im Browser öffnen:
+
+```text
+http://127.0.0.1:8080
+```
+
+Der simulierte Akku startet mit:
+
+- Zustand `LOCKED`
+- Statuscode `04`
+- fünf realistischen Zellspannungen
+- simulierten Temperaturen und Ladezyklen
+
+Nach Eingabe von `RESET` wechselt der virtuelle Akku zu `UNLOCKED` und
+Statuscode `00`. Beim Aktualisieren verändern sich die Messwerte geringfügig.
+
+### ESP32-C3 mit Wokwi simulieren
+
+Das Repository enthält `diagram.json`, `wokwi.toml` und die
+PlatformIO-Umgebung `esp32-c3-simulation`.
+
+Zuerst die Simulationsfirmware kompilieren:
+
+```bash
+pio run -e esp32-c3-simulation
+```
+
+Anschließend in VS Code die Erweiterung „Wokwi Simulator“ öffnen und die
+Simulation starten. Die Firmware verbindet sich automatisch mit
+`Wokwi-GUEST` und verwendet denselben virtuellen Akku wie der lokale
+Mock-Server.
+
+Für den direkten Zugriff auf den simulierten ESP32-Webserver aus dem Browser
+wird das Wokwi Private IoT Gateway benötigt. Mit dessen Standardweiterleitung
+ist die Webseite unter folgender Adresse erreichbar:
+
+```text
+http://localhost:9080
+```
+
+Ohne Private Gateway lassen sich Firmwarestart, WLAN-Verbindung und Ausgaben im
+seriellen Monitor testen. Der lokale Mock-Server bleibt für die vollständige
+Browserbedienung kostenlos nutzbar.
+
 ## Bedienung
 
 1. ESP32-C3 über USB-C einschalten.
