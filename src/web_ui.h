@@ -215,7 +215,7 @@ const char INDEX_HTML[] PROGMEM = R"HTML(
       $("#updateState").textContent="Suche nach einer neuen Firmware ...";
       try{const result=await api("/api/update/check");
         if(result.update_available){$("#updateState").textContent="Neue Version "+result.latest_version+" verfügbar (aktuell "+result.current_version+").";els.installUpdate.disabled=false}
-        else $("#updateState").textContent="Die Firmware "+result.current_version+" ist aktuell.";
+        else $("#updateState").textContent=result.message||("Die Firmware "+result.current_version+" ist aktuell.");
       }catch(e){$("#updateState").textContent=e.message;notice(e.message,"error")}
       finally{els.checkUpdate.disabled=false}}
     async function installUpdate(){els.checkUpdate.disabled=true;els.installUpdate.disabled=true;

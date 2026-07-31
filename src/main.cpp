@@ -706,6 +706,11 @@ bool fetch_update_info(
     }
     http.addHeader("User-Agent", "OBI-C3");
     const int status = http.GET();
+    if (status == HTTP_CODE_NOT_FOUND) {
+        error = "NO_RELEASE";
+        http.end();
+        return false;
+    }
     if (status != HTTP_CODE_OK) {
         error = "GitHub-Updateprüfung fehlgeschlagen: HTTP " + String(status);
         http.end();
@@ -744,6 +749,14 @@ void handle_update_check() {
     String release_url;
     String error;
     if (!fetch_update_info(latest_version, download_url, release_url, error)) {
+        if (error == "NO_RELEASE") {
+            JsonDocument document;
+            document["current_version"] = firmware_version();
+            document["update_available"] = false;
+            document["message"] = "Noch kein Firmware-Release veröffentlicht.";
+            send_json(document);
+            return;
+        }
         send_error(error, 503);
         return;
     }
@@ -762,6 +775,10 @@ void handle_update_install() {
     String release_url;
     String error;
     if (!fetch_update_info(latest_version, download_url, release_url, error)) {
+        if (error == "NO_RELEASE") {
+            send_error("Noch kein Firmware-Release veröffentlicht.", 404);
+            return;
+        }
         send_error(error, 503);
         return;
     }
