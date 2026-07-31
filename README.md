@@ -33,6 +33,7 @@ und verwendet dessen angepasste OneWire-Implementierung.
 - Fehler-Reset nur nach Eingabe von `RESET`
 - Diagnoseunterstützung für F0513
 - Schreibsperre für F0513
+- OTA-Firmwareupdates direkt über die Weboberfläche
 - ursprüngliche serielle OBI-Funktion bleibt über die anderen
   PlatformIO-Umgebungen erhalten
 
@@ -71,6 +72,24 @@ pio run -e esp32-c3-web -t upload
 
 In VS Code kann alternativ in der PlatformIO-Seitenleiste die Umgebung
 `esp32-c3-web` ausgewählt und anschließend `Upload` ausgeführt werden.
+
+## Firmwareupdates für Kunden
+
+Für ein neues Kundenupdate wird die Versionsnummer in `src/main.cpp` erhöht.
+Danach wird ein GitHub-Tag mit derselben Versionsnummer veröffentlicht, zum
+Beispiel:
+
+```bash
+git tag v0.4.1
+git push origin v0.4.1
+```
+
+GitHub Actions baut daraus automatisch ein Release mit `firmware.bin`. Kunden
+öffnen anschließend die OBI-C3-Weboberfläche, klicken auf **Nach Updates
+suchen** und bestätigen bei einer neuen Version **Jetzt aktualisieren**. Der
+ESP32 lädt die Firmware selbstständig herunter, installiert sie und startet
+neu. Der Akku sollte währenddessen entfernt und das Gerät stabil per USB-C
+versorgt werden.
 
 Der serielle Monitor arbeitet mit 115200 Baud:
 

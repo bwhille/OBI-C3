@@ -3,8 +3,8 @@
 
 /** OBI interface firmware version. */
 #define ARDUINO_OBI_VERSION_MAJOR 0
-#define ARDUINO_OBI_VERSION_MINOR 3
-#define ARDUINO_OBI_VERSION_PATCH 1
+#define ARDUINO_OBI_VERSION_MINOR 4
+#define ARDUINO_OBI_VERSION_PATCH 0
 
 #ifdef ESP_BUILD
 #define ONEWIRE_PIN ESP_OW_PIN
@@ -269,13 +269,20 @@ void loop() {
 
 #include <ArduinoJson.h>
 #include <ESPmDNS.h>
+#include <HTTPClient.h>
 #include <Preferences.h>
+#include <Update.h>
 #include <WebServer.h>
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include "web_ui.h"
 
 WebServer server(80);
 Preferences preferences;
+
+static const char *UPDATE_API_URL =
+    "https://api.github.com/repos/bwhille/OBI-C3/releases/latest";
+static const char *UPDATE_ASSET_NAME = "firmware.bin";
 
 static const byte MODEL_CMD[] = {0x01, 0x02, 0x10, 0xCC, 0xDC, 0x0C};
 static const byte READ_DATA_REQUEST[] = {
@@ -634,6 +641,9 @@ void add_battery_json(JsonObject target) {
     }
 }
 
+void send_json(JsonDocument &document, int status = 200);
+void send_error(const String &message, int status = 400);
+
 void add_status_json(JsonObject target) {
     target["firmware_version"] =
         String(ARDUINO_OBI_VERSION_MAJOR) + "." +
@@ -655,13 +665,159 @@ void add_status_json(JsonObject target) {
     target["uptime_seconds"] = millis() / 1000;
 }
 
-void send_json(JsonDocument &document, int status = 200) {
+String firmware_version() {
+    return String(ARDUINO_OBI_VERSION_MAJOR) + "." +
+           String(ARDUINO_OBI_VERSION_MINOR) + "." +
+           String(ARDUINO_OBI_VERSION_PATCH);
+}
+
+int compare_versions(const String &left, const String &right) {
+    int left_values[3] = {0, 0, 0};
+    int right_values[3] = {0, 0, 0};
+    sscanf(left.c_str(), "%d.%d.%d", &left_values[0], &left_values[1], &left_values[2]);
+    sscanf(right.c_str(), "%d.%d.%d", &right_values[0], &right_values[1], &right_values[2]);
+    for (size_t i = 0; i < 3; i++) {
+        if (left_values[i] != right_values[i]) {
+            return left_values[i] > right_values[i] ? 1 : -1;
+        }
+    }
+    return 0;
+}
+
+bool fetch_update_info(
+    String &latest_version,
+    String &download_url,
+    String &release_url,
+    String &error
+) {
+    if (access_point_mode || WiFi.status() != WL_CONNECTED) {
+        error = "Für Updates muss das Gerät mit dem Heim-WLAN verbunden sein.";
+        return false;
+    }
+
+    WiFiClientSecure client;
+    client.setInsecure();
+    HTTPClient http;
+    http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+    http.setRedirectLimit(3);
+    if (!http.begin(client, UPDATE_API_URL)) {
+        error = "GitHub-Updateprüfung konnte nicht gestartet werden.";
+        return false;
+    }
+    http.addHeader("User-Agent", "OBI-C3");
+    const int status = http.GET();
+    if (status != HTTP_CODE_OK) {
+        error = "GitHub-Updateprüfung fehlgeschlagen: HTTP " + String(status);
+        http.end();
+        return false;
+    }
+
+    JsonDocument document;
+    const DeserializationError parse_error = deserializeJson(document, http.getString());
+    http.end();
+    if (parse_error) {
+        error = "Die GitHub-Updateinformationen sind ungültig.";
+        return false;
+    }
+
+    latest_version = document["tag_name"].as<String>();
+    if (latest_version.startsWith("v") || latest_version.startsWith("V")) {
+        latest_version.remove(0, 1);
+    }
+    release_url = document["html_url"].as<String>();
+    for (JsonObject asset : document["assets"].as<JsonArray>()) {
+        if (asset["name"].as<String>() == UPDATE_ASSET_NAME) {
+            download_url = asset["browser_download_url"].as<String>();
+            break;
+        }
+    }
+    if (latest_version.length() == 0 || download_url.length() == 0) {
+        error = "Im neuesten GitHub-Release wurde keine firmware.bin gefunden.";
+        return false;
+    }
+    return true;
+}
+
+void handle_update_check() {
+    String latest_version;
+    String download_url;
+    String release_url;
+    String error;
+    if (!fetch_update_info(latest_version, download_url, release_url, error)) {
+        send_error(error, 503);
+        return;
+    }
+
+    JsonDocument document;
+    document["current_version"] = firmware_version();
+    document["latest_version"] = latest_version;
+    document["update_available"] = compare_versions(latest_version, firmware_version()) > 0;
+    document["release_url"] = release_url;
+    send_json(document);
+}
+
+void handle_update_install() {
+    String latest_version;
+    String download_url;
+    String release_url;
+    String error;
+    if (!fetch_update_info(latest_version, download_url, release_url, error)) {
+        send_error(error, 503);
+        return;
+    }
+    if (compare_versions(latest_version, firmware_version()) <= 0) {
+        send_error("Die Firmware ist bereits aktuell.", 409);
+        return;
+    }
+
+    WiFiClientSecure client;
+    client.setInsecure();
+    HTTPClient http;
+    http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+    http.setRedirectLimit(3);
+    if (!http.begin(client, download_url)) {
+        send_error("Firmware-Download konnte nicht gestartet werden.", 503);
+        return;
+    }
+    http.addHeader("User-Agent", "OBI-C3");
+    const int status = http.GET();
+    if (status != HTTP_CODE_OK) {
+        error = "Firmware-Download fehlgeschlagen: HTTP " + String(status);
+        http.end();
+        send_error(error, 503);
+        return;
+    }
+
+    const int content_length = http.getSize();
+    if (content_length <= 0 || !Update.begin(static_cast<size_t>(content_length))) {
+        http.end();
+        send_error("Firmwaregröße ist ungültig oder zu groß.", 507);
+        return;
+    }
+    const size_t written = Update.writeStream(*http.getStreamPtr());
+    const bool completed = written == static_cast<size_t>(content_length) && Update.end(true);
+    http.end();
+    if (!completed) {
+        Update.abort();
+        send_error("Firmware konnte nicht vollständig installiert werden.", 500);
+        return;
+    }
+
+    JsonDocument document;
+    document["message"] = "Update installiert. Das Gerät startet jetzt neu.";
+    document["version"] = latest_version;
+    send_json(document);
+    delay(700);
+    ESP.restart();
+}
+
+void send_json(JsonDocument &document, int status) {
     String output;
     serializeJson(document, output);
     server.send(status, "application/json; charset=utf-8", output);
 }
 
-void send_error(const String &message, int status = 400) {
+void send_error(const String &message, int status) {
     JsonDocument document;
     document["error"] = message;
     send_json(document, status);
@@ -899,6 +1055,8 @@ void setup_web_server() {
     server.on("/api/status", HTTP_GET, handle_status);
     server.on("/api/read", HTTP_POST, handle_read_all);
     server.on("/api/read/live", HTTP_POST, handle_read_live);
+    server.on("/api/update/check", HTTP_GET, handle_update_check);
+    server.on("/api/update/install", HTTP_POST, handle_update_install);
     server.on("/api/errors/reset", HTTP_POST, handle_reset_errors);
     server.on("/api/wifi", HTTP_POST, handle_wifi_save);
     server.on("/api/wifi/clear", HTTP_POST, handle_wifi_clear);

@@ -55,6 +55,8 @@ const char INDEX_HTML[] PROGMEM = R"HTML(
       align-items:center;justify-content:space-between;gap:20px;margin-top:12px}
     .danger{border-color:#ff5b5b66}.danger p,.wifi p,.history p{color:var(--muted);
       line-height:1.45;margin:5px 0 0}.wifi-form{display:flex;gap:8px;flex-wrap:wrap}
+    .update{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-top:12px}
+    .update p{color:var(--muted);line-height:1.45;margin:5px 0 0}.update-actions{display:flex;gap:8px;flex-wrap:wrap}
     .chart-panel,.history{margin-top:12px}.chart-head,.history-head{display:flex;align-items:center;
       justify-content:space-between;gap:12px;flex-wrap:wrap}.chart-wrap{position:relative;height:260px;margin-top:12px}
     canvas{width:100%;height:100%;display:block;background:var(--canvas);border:1px solid var(--line);border-radius:10px}
@@ -156,6 +158,10 @@ const char INDEX_HTML[] PROGMEM = R"HTML(
         <button>Speichern</button>
       </form>
     </section>
+    <section class="panel update">
+      <div><h2>Firmware-Update</h2><p id="updateState">Nach Updates suchen, um die Firmware zu prüfen.</p></div>
+      <div class="update-actions"><button id="checkUpdate">Nach Updates suchen</button><button id="installUpdate" class="primary" disabled>Jetzt aktualisieren</button></div>
+    </section>
   </main>
   <footer>Dieses Projekt dient ausschließlich zur Diagnose kompatibler Akkus. OBI-C3 ist ein unabhängiges Open-Source-Projekt und kein offizielles Makita®-Produkt. Der Einsatz erfolgt auf eigene Verantwortung.</footer>
   <dialog id="dialog">
@@ -173,7 +179,7 @@ const char INDEX_HTML[] PROGMEM = R"HTML(
       badge:$("#badge"),notice:$("#notice"),read:$("#read"),refresh:$("#refresh"),
       reset:$("#reset"),dialog:$("#dialog"),confirmation:$("#confirmation"),
       exportJson:$("#exportJson"),exportCsv:$("#exportCsv"),chart:$("#chart"),
-      themeToggle:$("#themeToggle")};
+      themeToggle:$("#themeToggle"),checkUpdate:$("#checkUpdate"),installUpdate:$("#installUpdate")};
     const HISTORY_KEY="obi-c3-history-v1",THEME_KEY="obi-c3-theme-v1",MAX_HISTORY=50;
     let battery=null,history=loadHistory();
     const text=(id,value,suffix="")=>{$("#"+id).textContent=
@@ -205,6 +211,17 @@ const char INDEX_HTML[] PROGMEM = R"HTML(
       "Einrichtungsmodus: ":"Verbunden mit ")+status.ssid+" · "+status.ip;
       els.badge.className="badge online";els.badge.lastElementChild.textContent=
       status.wifi_mode==="ap"?"Setup-WLAN":"Online"}
+    async function checkForUpdate(){els.checkUpdate.disabled=true;els.installUpdate.disabled=true;
+      $("#updateState").textContent="Suche nach einer neuen Firmware ...";
+      try{const result=await api("/api/update/check");
+        if(result.update_available){$("#updateState").textContent="Neue Version "+result.latest_version+" verfügbar (aktuell "+result.current_version+").";els.installUpdate.disabled=false}
+        else $("#updateState").textContent="Die Firmware "+result.current_version+" ist aktuell.";
+      }catch(e){$("#updateState").textContent=e.message;notice(e.message,"error")}
+      finally{els.checkUpdate.disabled=false}}
+    async function installUpdate(){els.checkUpdate.disabled=true;els.installUpdate.disabled=true;
+      $("#updateState").textContent="Update wird heruntergeladen und installiert. Gerät nicht ausschalten ...";
+      try{const result=await api("/api/update/install",{method:"POST"});$("#updateState").textContent=result.message}
+      catch(e){$("#updateState").textContent=e.message;notice(e.message,"error");els.checkUpdate.disabled=false}}
     function renderBattery(data,store=false){battery=data;if(!data||!data.valid)return;
       const soc=estimateSoc(data.cell_voltages);
       text("model",data.model);text("state",data.state);text("pack",
@@ -291,6 +308,7 @@ const char INDEX_HTML[] PROGMEM = R"HTML(
       {"Content-Type":"application/x-www-form-urlencoded"},body});
       notice(result.message)}catch(e){notice(e.message,"error")}};
     els.themeToggle.onchange=()=>applyTheme(els.themeToggle.checked?"light":"dark");
+    els.checkUpdate.onclick=checkForUpdate;els.installUpdate.onclick=installUpdate;
     applyTheme(localStorage.getItem(THEME_KEY)==="light"?"light":"dark");
     window.addEventListener("resize",()=>requestAnimationFrame(drawChart));
     renderHistory();drawChart();load();
