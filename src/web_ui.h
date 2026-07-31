@@ -8,17 +8,22 @@ const char INDEX_HTML[] PROGMEM = R"HTML(
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>OBI Web</title>
   <style>
-    :root{color-scheme:dark;--bg:#0b0e11;--panel:#171c22;--line:#2a333d;
-      --text:#f4f7f9;--muted:#9ba8b4;--yellow:#ffb000;--green:#42c983;
-      --red:#ff5b5b;--blue:#58a6ff;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+    :root{color-scheme:dark;--bg:#0b0e11;--panel:#171c22;--panel-strong:#1c232b;
+      --line:#2a333d;--text:#f4f7f9;--muted:#9ba8b4;--yellow:#ffb000;--green:#42c983;
+      --red:#ff5b5b;--blue:#58a6ff;--canvas:#0d1116;--table:#11171d;
+      font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+    :root[data-theme="light"]{color-scheme:light;--bg:#eef2f4;--panel:#ffffff;
+      --panel-strong:#f8fafb;--line:#cbd5dc;--text:#18232c;--muted:#5f707d;
+      --canvas:#f5f8fa;--table:#e8eef2}
     *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at
-      10% 0%,#ffb00015,transparent 28rem),var(--bg);color:var(--text)}
+      10% 0%,#ffb00015,transparent 28rem),var(--bg);color:var(--text);transition:background .2s,color .2s}
     header,main{width:min(1080px,calc(100% - 28px));margin:auto}
     header{display:flex;align-items:center;justify-content:space-between;
       padding:30px 0 20px}.eyebrow{color:var(--yellow);font-size:.75rem;
       font-weight:800;letter-spacing:.13em;text-transform:uppercase;margin:0 0 3px}
+    .header-actions{display:flex;align-items:center;gap:10px}
     h1{font-size:clamp(1.6rem,5vw,2.35rem);margin:0}h2{font-size:1rem;margin:0 0 15px}
-    .panel{background:linear-gradient(145deg,#1c232b,var(--panel));border:1px solid
+    .panel{background:linear-gradient(145deg,var(--panel-strong),var(--panel));border:1px solid
       var(--line);border-radius:15px;box-shadow:0 14px 35px #0003}
     .badge{display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid
       var(--line);border-radius:99px;color:var(--muted);font-size:.82rem}
@@ -26,7 +31,7 @@ const char INDEX_HTML[] PROGMEM = R"HTML(
     .online .dot{background:var(--green)}.controls{display:flex;gap:10px;
       padding:16px;flex-wrap:wrap}button,input{min-height:42px;border-radius:9px;
       border:1px solid var(--line);padding:0 14px;font:inherit}
-    button{font-weight:750;cursor:pointer;background:#252e38;color:var(--text)}
+    button{font-weight:750;cursor:pointer;background:var(--panel-strong);color:var(--text)}
     button.primary{background:var(--yellow);color:#17120a;border:0}
     button.secondary{background:#1f3448;border-color:#315474}
     button.danger{background:#b93636;border:0}button:disabled{opacity:.4;cursor:not-allowed}
@@ -49,19 +54,20 @@ const char INDEX_HTML[] PROGMEM = R"HTML(
       line-height:1.45;margin:5px 0 0}.wifi-form{display:flex;gap:8px;flex-wrap:wrap}
     .chart-panel,.history{margin-top:12px}.chart-head,.history-head{display:flex;align-items:center;
       justify-content:space-between;gap:12px;flex-wrap:wrap}.chart-wrap{position:relative;height:260px;margin-top:12px}
-    canvas{width:100%;height:100%;display:block;background:#0d1116;border:1px solid var(--line);border-radius:10px}
+    canvas{width:100%;height:100%;display:block;background:var(--canvas);border:1px solid var(--line);border-radius:10px}
     .legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:.78rem}
     .legend span::before{content:"";display:inline-block;width:10px;height:3px;margin-right:6px;vertical-align:middle;background:var(--yellow)}
     .legend span:nth-child(2)::before{background:var(--blue)}.legend span:nth-child(3)::before{background:var(--green)}
     .table-wrap{overflow:auto;margin-top:12px;border:1px solid var(--line);border-radius:10px}
     table{border-collapse:collapse;width:100%;min-width:760px;font-size:.82rem}th,td{padding:10px 12px;
       border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}th:first-child,td:first-child,
-      th:nth-child(2),td:nth-child(2){text-align:left}th{color:var(--muted);background:#11171d;position:sticky;top:0}
+      th:nth-child(2),td:nth-child(2){text-align:left}th{color:var(--muted);background:var(--table);position:sticky;top:0}
     .empty{text-align:center!important;color:var(--muted);padding:24px}
     dialog{width:min(480px,calc(100% - 26px));border:1px solid var(--line);
       border-radius:14px;background:var(--panel);color:var(--text);padding:22px}
-    dialog::backdrop{background:#000b}dialog input{width:100%;background:#0e1216;
+    dialog::backdrop{background:#000b}dialog input{width:100%;background:var(--canvas);
       color:var(--text);margin:8px 0 16px}.actions{display:flex;gap:8px;justify-content:flex-end}
+    #themeToggle{white-space:nowrap}
     @media(max-width:900px){.summary{grid-template-columns:repeat(3,1fr)}}
     @media(max-width:760px){.summary{grid-template-columns:1fr 1fr}.content{
       grid-template-columns:1fr}.danger,.wifi{align-items:stretch;flex-direction:column}.chart-wrap{height:220px}}
@@ -70,7 +76,7 @@ const char INDEX_HTML[] PROGMEM = R"HTML(
 <body>
   <header>
     <div><p class="eyebrow">Open Battery Information</p><h1>Makita LXT Diagnose</h1></div>
-    <div id="badge" class="badge"><span class="dot"></span><span>Initialisiere</span></div>
+    <div class="header-actions"><button id="themeToggle" type="button" aria-label="Farbschema wechseln">Hell</button><div id="badge" class="badge"><span class="dot"></span><span>Initialisiere</span></div></div>
   </header>
   <main>
     <section class="panel controls">
@@ -153,8 +159,9 @@ const char INDEX_HTML[] PROGMEM = R"HTML(
     const $=s=>document.querySelector(s), els={
       badge:$("#badge"),notice:$("#notice"),read:$("#read"),refresh:$("#refresh"),
       reset:$("#reset"),dialog:$("#dialog"),confirmation:$("#confirmation"),
-      exportJson:$("#exportJson"),exportCsv:$("#exportCsv"),chart:$("#chart")};
-    const HISTORY_KEY="obi-c3-history-v1",MAX_HISTORY=50;
+      exportJson:$("#exportJson"),exportCsv:$("#exportCsv"),chart:$("#chart"),
+      themeToggle:$("#themeToggle")};
+    const HISTORY_KEY="obi-c3-history-v1",THEME_KEY="obi-c3-theme-v1",MAX_HISTORY=50;
     let battery=null,history=loadHistory();
     const text=(id,value,suffix="")=>{$("#"+id).textContent=
       value===null||value===undefined||value===""?"–":value+suffix};
@@ -163,6 +170,10 @@ const char INDEX_HTML[] PROGMEM = R"HTML(
       maximumFractionDigits:digits}).format(value);
     function notice(message,type="ok"){els.notice.textContent=message;
       els.notice.className="notice "+type}
+    function applyTheme(theme){document.documentElement.dataset.theme=theme;
+      els.themeToggle.textContent=theme==="light"?"Dunkel":"Hell";
+      els.themeToggle.setAttribute("aria-label",theme==="light"?"Dunkelschema aktivieren":"Hellschema aktivieren");
+      localStorage.setItem(THEME_KEY,theme);drawChart()}
     async function api(path,options={}){const response=await fetch(path,options);
       const body=await response.json().catch(()=>({}));if(!response.ok)
       throw new Error(body.error||"HTTP "+response.status);return body}
@@ -218,7 +229,8 @@ const char INDEX_HTML[] PROGMEM = R"HTML(
       const canvas=els.chart,rect=canvas.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
       canvas.width=Math.max(300,Math.round(rect.width*dpr));canvas.height=Math.max(180,Math.round(rect.height*dpr));
       const ctx=canvas.getContext("2d");ctx.scale(dpr,dpr);const w=rect.width,h=rect.height,p=34;
-      ctx.clearRect(0,0,w,h);ctx.strokeStyle="#2a333d";ctx.lineWidth=1;ctx.fillStyle="#9ba8b4";ctx.font="11px system-ui";
+      const colors=getComputedStyle(document.documentElement);ctx.clearRect(0,0,w,h);
+      ctx.strokeStyle=colors.getPropertyValue("--line");ctx.lineWidth=1;ctx.fillStyle=colors.getPropertyValue("--muted");ctx.font="11px system-ui";
       for(let i=0;i<=4;i++){const y=p+(h-2*p)*i/4;ctx.beginPath();ctx.moveTo(p,y);ctx.lineTo(w-p,y);ctx.stroke()}
       if(history.length<2){ctx.fillText("Mindestens zwei Messungen für den Verlauf erforderlich.",p,h/2);return}
       const series=[{key:"pack_voltage",color:"#ffb000"},{key:"cell_voltage_difference",color:"#58a6ff",factor:100},{key:"temperature_cell",color:"#42c983"}];
@@ -265,6 +277,8 @@ const char INDEX_HTML[] PROGMEM = R"HTML(
       const result=await api("/api/wifi",{method:"POST",headers:
       {"Content-Type":"application/x-www-form-urlencoded"},body});
       notice(result.message)}catch(e){notice(e.message,"error")}};
+    els.themeToggle.onclick=()=>applyTheme(document.documentElement.dataset.theme==="light"?"dark":"light");
+    applyTheme(localStorage.getItem(THEME_KEY)==="light"?"light":"dark");
     window.addEventListener("resize",()=>requestAnimationFrame(drawChart));
     renderHistory();drawChart();load();
   </script>
