@@ -1,0 +1,32 @@
+name: Firmware Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: PlatformIO installieren
+        run: python -m pip install --upgrade platformio
+
+      - name: Firmware bauen
+        run: pio run --environment esp32-c3-web
+
+      - name: GitHub Release erstellen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" .pio/build/esp32-c3-web/firmware.bin --title "OBI-C3 ${GITHUB_REF_NAME}" --generate-notes
