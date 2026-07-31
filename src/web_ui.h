@@ -70,7 +70,16 @@ const char INDEX_HTML[] PROGMEM = R"HTML(
       border-radius:14px;background:var(--panel);color:var(--text);padding:22px}
     dialog::backdrop{background:#000b}dialog input{width:100%;background:var(--canvas);
       color:var(--text);margin:8px 0 16px}.actions{display:flex;gap:8px;justify-content:flex-end}
-    #themeToggle{white-space:nowrap}
+    .theme-switch{display:flex;align-items:center;gap:8px;color:var(--muted);
+      font-size:.78rem;cursor:pointer;white-space:nowrap}.theme-switch input{
+      position:absolute;opacity:0;width:1px;height:1px}.switch-track{position:relative;
+      width:46px;height:26px;border:1px solid var(--line);border-radius:99px;
+      background:var(--panel-strong);transition:background .2s,border-color .2s}
+    .switch-track::after{content:"";position:absolute;width:20px;height:20px;left:2px;top:2px;
+      border-radius:50%;background:var(--muted);transition:transform .2s,background .2s}
+    .theme-switch input:checked+.switch-track{background:var(--yellow);border-color:var(--yellow)}
+    .theme-switch input:checked+.switch-track::after{transform:translateX(20px);background:#17120a}
+    .theme-switch input:focus-visible+.switch-track{outline:2px solid var(--blue);outline-offset:3px}
     @media(max-width:900px){.summary{grid-template-columns:repeat(3,1fr)}}
     @media(max-width:760px){.summary{grid-template-columns:1fr 1fr}.content{
       grid-template-columns:1fr}.danger,.wifi{align-items:stretch;flex-direction:column}.chart-wrap{height:220px}}
@@ -79,7 +88,7 @@ const char INDEX_HTML[] PROGMEM = R"HTML(
 <body>
   <header>
     <div><p class="eyebrow">Open Battery Information</p><h1>Makita LXT Diagnose</h1></div>
-    <div class="header-actions"><button id="themeToggle" type="button" aria-label="Farbschema wechseln">Hell</button><div id="badge" class="badge"><span class="dot"></span><span>Initialisiere</span></div></div>
+    <div class="header-actions"><label class="theme-switch"><span id="themeLabel">Dunkel</span><input id="themeToggle" type="checkbox" role="switch" aria-label="Hellschema aktivieren"><span class="switch-track"></span></label><div id="badge" class="badge"><span class="dot"></span><span>Initialisiere</span></div></div>
   </header>
   <main>
     <section class="panel controls">
@@ -175,7 +184,7 @@ const char INDEX_HTML[] PROGMEM = R"HTML(
     function notice(message,type="ok"){els.notice.textContent=message;
       els.notice.className="notice "+type}
     function applyTheme(theme){document.documentElement.dataset.theme=theme;
-      els.themeToggle.textContent=theme==="light"?"Dunkel":"Hell";
+      els.themeToggle.checked=theme==="light";$("#themeLabel").textContent=theme==="light"?"Hell":"Dunkel";
       els.themeToggle.setAttribute("aria-label",theme==="light"?"Dunkelschema aktivieren":"Hellschema aktivieren");
       localStorage.setItem(THEME_KEY,theme);drawChart()}
     async function api(path,options={}){const response=await fetch(path,options);
@@ -281,7 +290,7 @@ const char INDEX_HTML[] PROGMEM = R"HTML(
       const result=await api("/api/wifi",{method:"POST",headers:
       {"Content-Type":"application/x-www-form-urlencoded"},body});
       notice(result.message)}catch(e){notice(e.message,"error")}};
-    els.themeToggle.onclick=()=>applyTheme(document.documentElement.dataset.theme==="light"?"dark":"light");
+    els.themeToggle.onchange=()=>applyTheme(els.themeToggle.checked?"light":"dark");
     applyTheme(localStorage.getItem(THEME_KEY)==="light"?"light":"dark");
     window.addEventListener("resize",()=>requestAnimationFrame(drawChart));
     renderHistory();drawChart();load();
