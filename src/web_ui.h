@@ -89,7 +89,7 @@ const char INDEX_HTML[] PROGMEM = R"HTML(
 </head>
 <body>
   <header>
-    <div><p class="eyebrow">Open Battery Information</p><h1>Makita LXT Diagnose @ HLTRP</h1></div>
+    <div><p class="eyebrow">Open Battery Information</p><h1>Makita LXT Diagnose</h1></div>
     <div class="header-actions"><label class="theme-switch"><span id="themeLabel">Dunkel</span><input id="themeToggle" type="checkbox" role="switch" aria-label="Hellschema aktivieren"><span class="switch-track"></span></label><div id="badge" class="badge"><span class="dot"></span><span>Initialisiere</span></div></div>
   </header>
   <main>
