@@ -6,7 +6,7 @@
 
 OBI-C3 macht aus einem **ESP32-C3 SuperMini** ein eigenständiges, per Browser bedienbares Diagnosegerät für kompatible Makita-LXT-Akkus.
 
-Der ESP32-C3 übernimmt dabei gleichzeitig die zeitkritische Kommunikation mit dem Akku, die WLAN-Verbindung, den Webserver sowie die Aufbereitung der Akku- und Diagnosedaten. Ein Raspberry Pi oder zusätzlicher Arduino wird nicht benötigt.
+Der ESP32-C3 übernimmt die zeitkritische Kommunikation mit dem Akku, die WLAN-Verbindung, den Webserver sowie die Aufbereitung der Akku- und Diagnosedaten. Ein Raspberry Pi oder zusätzlicher Arduino wird nicht benötigt.
 
 > [!IMPORTANT]
 > OBI-C3 ist ein unabhängiges Open-Source-Projekt. Es besteht keine geschäftliche, technische oder sonstige Verbindung zu Makita. Makita und LXT sind Marken ihrer jeweiligen Rechteinhaber.
@@ -17,7 +17,8 @@ Das Projekt basiert auf [mnh-jansson/open-battery-information](https://github.co
 
 - Aktuelle Firmware: **0.4.4**
 - Standard-PlatformIO-Umgebung: `esp32-c3-web`
-- OTA-Updates über GitHub Releases
+- Browserbasierte Diagnoseoberfläche
+- Automatische OTA-Updates über GitHub Releases
 - Lokaler Browser-Test ohne Hardware möglich
 
 ## Funktionen
@@ -26,7 +27,7 @@ Das Projekt basiert auf [mnh-jansson/open-battery-information](https://github.co
 - Umschaltbares helles und dunkles Design
 - WLAN-Ersteinrichtung über einen eigenen Setup-Access-Point
 - Speichern neuer WLAN-Zugangsdaten über die Weboberfläche
-- Löschen der gespeicherten WLAN-Konfiguration für mobilen oder Baustellenbetrieb
+- Löschen der gespeicherten WLAN-Konfiguration
 - Auslesen von Akku- und Diagnosedaten
 - Anzeige von:
   - Akkumodell
@@ -35,16 +36,16 @@ Das Projekt basiert auf [mnh-jansson/open-battery-information](https://github.co
   - einzelnen Zellspannungen
   - maximaler Zelldifferenz
   - Zelltemperatur
-  - MOSFET-Temperatur
+  - MOSFET-Temperatur, sofern vom Akku unterstützt
   - Ladezyklen
   - Kapazität
   - Herstellungsdatum
   - ROM-ID
 - Diagnoseunterstützung für den Fehlercode F0513
-- Schreibsperre für F0513
+- Gesperrter Fehler-Reset bei F0513
 - Bestätigungspflichtiger Fehler-Reset durch Eingabe von `RESET`
 - Automatische Suche nach neuen Firmwareversionen
-- OTA-Installation direkt über die Weboberfläche
+- OTA-Installation direkt aus einem GitHub Release
 - Serielle OBI-Funktion über die übrigen PlatformIO-Umgebungen
 
 Der im Ursprungsprojekt nicht implementierte **Battery message reset** ist nicht Bestandteil dieser Firmware.
@@ -73,20 +74,20 @@ Der zu prüfende Akku versorgt weder den ESP32 noch den Webserver. Das Gerät bl
 
 ## Schnellstart
 
-### 1. Repository klonen
+### Repository klonen
 
 ```bash
 git clone https://github.com/bwhille/OBI-C3.git
 cd OBI-C3
 ```
 
-### 2. Firmware kompilieren
+### Firmware kompilieren
 
 ```bash
 pio run -e esp32-c3-web
 ```
 
-### 3. ESP32-C3 flashen
+### ESP32-C3 flashen
 
 ```bash
 pio run -e esp32-c3-web -t upload
@@ -94,7 +95,7 @@ pio run -e esp32-c3-web -t upload
 
 In VS Code kann alternativ in der PlatformIO-Seitenleiste die Umgebung `esp32-c3-web` ausgewählt und anschließend **Upload** gestartet werden.
 
-### 4. Seriellen Monitor öffnen
+### Seriellen Monitor öffnen
 
 ```bash
 pio device monitor -b 115200
@@ -116,25 +117,25 @@ Adresse: http://192.168.4.1
 4. Die Einstellungen speichern.
 5. Der ESP32 startet anschließend neu und verbindet sich mit dem gewählten WLAN.
 
-Im Heimnetz ist das Gerät normalerweise unter folgender Adresse erreichbar:
+Nach der Verbindung wird die Weboberfläche über die vom Router vergebene IP-Adresse geöffnet:
 
 ```text
-http://obi.local
+http://<IP-DES-OBI-C3>/
 ```
 
-Falls mDNS im Netzwerk nicht funktioniert, kann die vom Router vergebene IP-Adresse verwendet werden. Sie wird außerdem im seriellen Monitor ausgegeben.
+Die IP-Adresse kann im Router oder im seriellen Monitor ermittelt werden.
 
 ## WLAN-Konfiguration löschen
 
 Die gespeicherten WLAN-Daten können direkt in der Weboberfläche über **WLAN löschen** entfernt werden.
 
-Nach der Bestätigung startet der ESP32 neu und öffnet wieder den Setup-Hotspot. Das ist besonders praktisch, wenn das Gerät unterwegs, in einem anderen Netzwerk oder direkt über den eigenen Access Point betrieben werden soll.
+Nach der Bestätigung startet der ESP32 neu und öffnet wieder den Setup-Hotspot. Dies ist für einen Netzwerkwechsel oder den direkten Betrieb über den Setup-Access-Point vorgesehen.
 
 ## Bedienung
 
 1. OBI-C3 über USB-C einschalten.
 2. Akku korrekt in die Aufnahme einsetzen.
-3. `http://obi.local` oder die IP-Adresse des Geräts öffnen.
+3. Die IP-Adresse des Geräts im Browser öffnen.
 4. **Akku auslesen** auswählen.
 5. Messwerte und Diagnoseinformationen prüfen.
 6. Vor einem Fehler-Reset Zellen, Temperatursensoren, Kontakte, Verdrahtung und BMS kontrollieren.
@@ -142,21 +143,24 @@ Nach der Bestätigung startet der ESP32 neu und öffnet wieder den Setup-Hotspot
 
 ## OTA-Firmwareupdates
 
-OBI-C3 kann neue Firmwareversionen direkt über die Weboberfläche installieren.
+OBI-C3 kann neue Firmwareversionen direkt über die normale Weboberfläche installieren. Eine separate Seite unter `/update` und ein manueller Upload einer lokalen Firmwaredatei sind in der aktuellen Firmware nicht vorgesehen.
 
 ### Update auf dem Gerät installieren
 
-1. OBI-C3 mit einem WLAN mit Internetzugang verbinden.
-2. Die Weboberfläche öffnen.
-3. **Nach Updates suchen** auswählen.
-4. Eine gefundene neue Version prüfen.
-5. **Jetzt aktualisieren** bestätigen.
-6. Das Gerät während des Updates nicht ausschalten.
+1. Akku aus der Aufnahme entfernen.
+2. OBI-C3 mit einem WLAN mit Internetzugang verbinden.
+3. Die Weboberfläche über die IP-Adresse öffnen.
+4. Im Bereich **Firmware-Update** auf **Nach Updates suchen** klicken.
+5. Eine gefundene neue Version prüfen.
+6. **Jetzt aktualisieren** auswählen.
+7. Das Gerät während Download und Installation nicht ausschalten.
 
-Der ESP32 lädt die neue `firmware.bin`, installiert sie und startet anschließend automatisch neu.
+Der ESP32 lädt die Datei `firmware.bin` aus dem neuesten GitHub Release, installiert sie und startet anschließend automatisch neu.
 
 > [!CAUTION]
 > Während eines OTA-Updates sollte kein Akku eingesetzt sein. OBI-C3 muss über eine stabile USB-C-Stromversorgung versorgt werden. Ein Stromausfall während des Flashens kann dazu führen, dass die Firmware anschließend per USB neu eingespielt werden muss.
+
+Eine ausführliche Beschreibung befindet sich in [docs/WEB_OTA.md](docs/WEB_OTA.md).
 
 ### Neues Release veröffentlichen
 
@@ -175,15 +179,15 @@ git tag v0.4.5
 git push origin v0.4.5
 ```
 
-GitHub Actions kompiliert daraus automatisch die Firmware und erstellt ein GitHub Release mit der Datei `firmware.bin`.
+GitHub Actions kompiliert die Umgebung `esp32-c3-web` und erstellt beziehungsweise aktualisiert ein GitHub Release mit der Datei `firmware.bin`.
 
-Die Versionsnummer des Tags und die Werte in `src/main.cpp` sollten immer übereinstimmen.
+Die Versionsnummer des Tags und die Werte in `src/main.cpp` müssen übereinstimmen.
 
 ## Virtuell testen
 
 ### Lokaler Browser-Test
 
-Der Mock-Server verwendet die in der Firmware eingebettete Weboberfläche und simuliert einen BL1850B-Akku. Benötigt wird lediglich Python 3.
+Der Mock-Server verwendet die in der Firmware eingebettete Weboberfläche und simuliert einen BL1850B-Akku. Benötigt wird Python 3.
 
 ```bash
 python3 tools/mock_server.py
@@ -209,21 +213,13 @@ Nach Eingabe von `RESET` wechselt der virtuelle Akku zu `UNLOCKED` und zum Statu
 
 Das Repository enthält die Dateien `diagram.json`, `wokwi.toml` sowie die PlatformIO-Umgebung `esp32-c3-simulation`.
 
-Firmware kompilieren:
-
 ```bash
 pio run -e esp32-c3-simulation
 ```
 
-Danach kann die Simulation über die VS-Code-Erweiterung **Wokwi Simulator** gestartet werden. Die Simulationsfirmware verbindet sich automatisch mit `Wokwi-GUEST` und verwendet einen virtuellen Akku.
+Die Simulation kann anschließend über die VS-Code-Erweiterung **Wokwi Simulator** gestartet werden. Die Simulationsfirmware verbindet sich automatisch mit `Wokwi-GUEST` und verwendet einen virtuellen Akku.
 
-Für den direkten Browserzugriff auf den simulierten Webserver wird das Wokwi Private IoT Gateway benötigt. Mit dessen Standardweiterleitung ist die Oberfläche normalerweise hier erreichbar:
-
-```text
-http://localhost:9080
-```
-
-Ohne Private Gateway können weiterhin Firmwarestart, WLAN-Verbindung und serielle Ausgaben geprüft werden. Für den vollständigen kostenlosen Browser-Test steht der lokale Mock-Server zur Verfügung.
+Für einen direkten Browserzugriff auf den simulierten Webserver ist ein Wokwi Private IoT Gateway erforderlich. Ohne Gateway können Firmwarestart, WLAN-Verbindung und serielle Ausgaben geprüft werden. Für einen vollständigen Browser-Test steht der lokale Mock-Server zur Verfügung.
 
 ## PlatformIO-Umgebungen
 
@@ -237,10 +233,10 @@ Ohne Private Gateway können weiterhin Firmwarestart, WLAN-Verbindung und seriel
 
 ## Fehlerbehebung
 
-### `obi.local` ist nicht erreichbar
+### Weboberfläche ist nicht erreichbar
 
 - Prüfen, ob das Gerät mit dem richtigen WLAN verbunden ist.
-- Sicherstellen, dass sich Client und OBI-C3 im selben Netzwerk befinden.
+- Sicherstellen, dass sich Client und OBI-C3 im selben erreichbaren Netzwerk befinden.
 - Die IP-Adresse im Router oder seriellen Monitor ermitteln.
 - Gastnetz-Isolation, Client-Isolation oder VLAN-Firewallregeln prüfen.
 
@@ -256,7 +252,7 @@ Ohne Private Gateway können weiterhin Firmwarestart, WLAN-Verbindung und seriel
 
 - Internetzugang des ESP32 prüfen.
 - Kontrollieren, ob ein GitHub Release mit passendem Versions-Tag existiert.
-- Sicherstellen, dass das Release eine Datei mit dem Namen `firmware.bin` enthält.
+- Sicherstellen, dass das Release eine Datei mit dem exakten Namen `firmware.bin` enthält.
 - Prüfen, ob die veröffentlichte Version höher als die installierte Version ist.
 
 ## Sicherheit
