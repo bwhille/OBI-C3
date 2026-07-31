@@ -22,6 +22,9 @@ const char INDEX_HTML[] PROGMEM = R"HTML(
       padding:30px 0 20px}.eyebrow{color:var(--yellow);font-size:.75rem;
       font-weight:800;letter-spacing:.13em;text-transform:uppercase;margin:0 0 3px}
     .header-actions{display:flex;align-items:center;gap:10px}
+    footer{width:min(1080px,calc(100% - 28px));margin:24px auto 30px;
+      padding-top:16px;border-top:1px solid var(--line);color:var(--muted);
+      font-size:.78rem;line-height:1.5;text-align:center}
     h1{font-size:clamp(1.6rem,5vw,2.35rem);margin:0}h2{font-size:1rem;margin:0 0 15px}
     .panel{background:linear-gradient(145deg,var(--panel-strong),var(--panel));border:1px solid
       var(--line);border-radius:15px;box-shadow:0 14px 35px #0003}
@@ -145,6 +148,7 @@ const char INDEX_HTML[] PROGMEM = R"HTML(
       </form>
     </section>
   </main>
+  <footer>Dieses Projekt dient ausschließlich zur Diagnose kompatibler Akkus. OBI-C3 ist ein unabhängiges Open-Source-Projekt und kein offizielles Makita®-Produkt. Der Einsatz erfolgt auf eigene Verantwortung.</footer>
   <dialog id="dialog">
     <form method="dialog">
       <h2>Fehler wirklich löschen?</h2>
