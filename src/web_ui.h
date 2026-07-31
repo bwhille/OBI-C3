@@ -151,11 +151,12 @@ const char INDEX_HTML[] PROGMEM = R"HTML(
       <button id="reset" class="danger" disabled>Fehler löschen</button>
     </section>
     <section class="panel wifi">
-      <div><h2>WLAN-Einrichtung</h2><p id="wifiState">–</p></div>
+      <div><h2>WLAN-Einrichtung</h2><p id="wifiState">–</p><p>Für den Baustellenbetrieb WLAN löschen und direkt mit dem Setup-Hotspot verbinden.</p></div>
       <form id="wifiForm" class="wifi-form">
         <input name="ssid" placeholder="2,4-GHz-WLAN" required>
         <input name="password" type="password" placeholder="WLAN-Passwort">
         <button>Speichern</button>
+        <button id="clearWifi" type="button" class="danger">WLAN löschen</button>
       </form>
     </section>
     <section class="panel update">
@@ -307,6 +308,10 @@ const char INDEX_HTML[] PROGMEM = R"HTML(
       const result=await api("/api/wifi",{method:"POST",headers:
       {"Content-Type":"application/x-www-form-urlencoded"},body});
       notice(result.message)}catch(e){notice(e.message,"error")}};
+    $("#clearWifi").onclick=async()=>{if(!confirm("WLAN-Einstellungen wirklich löschen? Der ESP32 startet danach im Setup-Hotspot neu."))return;
+      const button=$("#clearWifi");button.disabled=true;
+      try{const result=await api("/api/wifi/clear",{method:"POST"});notice(result.message)}
+      catch(e){notice(e.message,"error");button.disabled=false}};
     els.themeToggle.onchange=()=>applyTheme(els.themeToggle.checked?"light":"dark");
     els.checkUpdate.onclick=checkForUpdate;els.installUpdate.onclick=installUpdate;
     applyTheme(localStorage.getItem(THEME_KEY)==="light"?"light":"dark");
