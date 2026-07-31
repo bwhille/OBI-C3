@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - "v*"
+      - "[0-9]*"
 
 permissions:
   contents: write
@@ -29,4 +30,11 @@ jobs:
       - name: GitHub Release erstellen
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${GITHUB_REF_NAME}" .pio/build/esp32-c3-web/firmware.bin --title "OBI-C3 ${GITHUB_REF_NAME}" --generate-notes
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            .pio/build/esp32-c3-web/firmware.bin \
+            --title "OBI-C3 ${GITHUB_REF_NAME}" \
+            --generate-notes || \
+          gh release upload "${GITHUB_REF_NAME}" \
+            .pio/build/esp32-c3-web/firmware.bin \
+            --clobber
