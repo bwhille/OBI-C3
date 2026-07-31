@@ -4,7 +4,7 @@
 /** OBI interface firmware version. */
 #define ARDUINO_OBI_VERSION_MAJOR 0
 #define ARDUINO_OBI_VERSION_MINOR 4
-#define ARDUINO_OBI_VERSION_PATCH 0
+#define ARDUINO_OBI_VERSION_PATCH 1
 
 #ifdef ESP_BUILD
 #define ONEWIRE_PIN ESP_OW_PIN
