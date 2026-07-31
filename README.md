@@ -17,10 +17,8 @@ Das Projekt basiert auf [mnh-jansson/open-battery-information](https://github.co
 
 - Aktuelle Firmware: **0.4.4**
 - Standard-PlatformIO-Umgebung: `esp32-c3-web`
-- Webzugriff im Heimnetz: `http://obi.local`
 - OTA-Updates über GitHub Releases
 - Lokaler Browser-Test ohne Hardware möglich
-- ESP32-C3-Simulation mit Wokwi vorbereitet
 
 ## Funktionen
 
@@ -29,7 +27,6 @@ Das Projekt basiert auf [mnh-jansson/open-battery-information](https://github.co
 - WLAN-Ersteinrichtung über einen eigenen Setup-Access-Point
 - Speichern neuer WLAN-Zugangsdaten über die Weboberfläche
 - Löschen der gespeicherten WLAN-Konfiguration für mobilen oder Baustellenbetrieb
-- Zugriff im Heimnetz über mDNS unter `http://obi.local`
 - Auslesen von Akku- und Diagnosedaten
 - Anzeige von:
   - Akkumodell
