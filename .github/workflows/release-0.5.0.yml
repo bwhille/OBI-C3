@@ -1,22 +1,25 @@
 name: Release 0.5.0 Migration
 
 on:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
       - main
-    paths:
-      - ".github/workflows/release-0.5.0.yml"
 
 permissions:
   contents: write
 
 jobs:
-  migrate-and-tag:
+  migrate:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - name: Repository auschecken
+      - name: Release-Branch auschecken
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.head_ref }}
           fetch-depth: 0
 
       - name: Firmware und Dokumentation aktualisieren
@@ -35,7 +38,7 @@ jobs:
               "BatteryData battery;\nbool access_point_mode = false;\nString access_point_name;\nstatic const unsigned long WIFI_FALLBACK_TIMEOUT_MS = 60000;\nunsigned long wifi_disconnected_since = 0;",
           )
           marker = "void setup_web_server() {"
-          monitor = r'''void monitor_wifi_connection() {
+          monitor = '''void monitor_wifi_connection() {
           #ifdef OBI_WOKWI_WIFI
               return;
           #else
@@ -115,15 +118,26 @@ Die gespeicherten WLAN-Zugangsdaten werden dabei nicht gelöscht. Über die Setu
           text = text.replace("zum Beispiel `v0.4.5`", "zum Beispiel `v0.5.1`")
           ota.write_text(text, encoding="utf-8")
 
-      - name: Änderungen committen und pushen
+      - name: Änderungen in Release-Branch pushen
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add src/main.cpp README.md docs/WEB_OTA.md
           git commit -m "Release v0.5.0: automatischer WLAN-Fallback"
-          git push origin main
+          git push origin HEAD:${{ github.head_ref }}
+
+  tag-release:
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, 'Release v0.5.0')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Release-Tag erstellen
         run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag v0.5.0
           git push origin v0.5.0
